@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moon Phase Calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --lit: #ffd54a;       /* lit part of the moon */
+    --shadow: #231c07;    /* dark part of the moon */
+    --bg: #0b0b0e;        /* calendar background */
+    --ink: #eceae4;
+    --muted: #8d8b85;
+    --line: #34343a;
+    --panel: #15151a;
+    --accent: var(--lit);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #060608; color: var(--ink);
+    font-family: "Noto Sans Myanmar", "Myanmar Text", "Myanmar Sangam MN", system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px 48px;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+
+  /* controls */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 16px; margin-bottom: 16px; font-size: 14px;
+  }
+  .controls .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .controls label { color: var(--muted); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .swatch {
+    width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0;
+  }
+  .swatch.active { border-color: var(--ink); }
+  input[type=color] {
+    width: 34px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px;
+    background: none; cursor: pointer;
+  }
+  button.btn, select {
+    background: #202027; color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 12px; font: inherit; cursor: pointer;
+  }
+  button.btn:hover { border-color: var(--accent); }
+
+  /* calendar */
+  .cal { background: var(--bg); border-radius: 14px; padding: 24px 20px 20px; border: 1px solid var(--line); }
+  .cal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .cal-head .word { font-size: 30px; font-weight: 700; letter-spacing: .04em; }
+  .cal-head .month { font-size: 26px; font-weight: 300; letter-spacing: .12em; text-transform: uppercase; }
+  .cal-head .year { font-size: 30px; font-weight: 700; }
+  .mm-banner { text-align: center; color: var(--accent); margin: 6px 0 14px; font-size: 15px; min-height: 22px; }
+  .nav { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px dashed var(--line); border-left: 1px dashed var(--line); }
+  .dow, .cell { border-right: 1px dashed var(--line); border-bottom: 1px dashed var(--line); }
+  .dow { text-align: center; padding: 6px 2px; font-size: 12px; color: var(--muted); }
+  .cell { min-height: 118px; padding: 6px 6px 8px; position: relative; display: flex; flex-direction: column; align-items: center; }
+  .cell.empty { background: transparent; }
+  .cell .d { align-self: flex-start; font-size: 13px; color: var(--muted); }
+  .cell.today { box-shadow: inset 0 0 0 2px var(--accent); }
+  .cell.today .d { color: var(--accent); font-weight: 600; }
+  .moon { width: 100%; max-width: 54px; margin: 2px auto 4px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--lit) 35%, transparent)); }
+  .moon svg { display: block; width: 100%; height: auto; }
+  .mm { font-size: 11px; line-height: 1.35; text-align: center; color: var(--muted); }
+  .mm b { color: var(--accent); font-weight: 600; }
+  .ev { font-size: 10px; text-align: center; color: var(--ink); line-height: 1.3; margin-top: 2px; }
+  .ev small { color: var(--muted); display: block; }
+  .cell.principal .moon { filter: drop-shadow(0 0 10px var(--lit)); }
+  .hide-mm .mm { display: none; }
+  .hide-mm .cell { min-height: 100px; }
+
+  .phases { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+  .phase-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; gap: 12px; align-items: center; }
+  .phase-card .moon { width: 38px; margin: 0; flex: none; }
+  .phase-card .t { font-size: 13px; color: var(--muted); }
+  .phase-card .n { font-size: 14px; }
+  .foot { margin-top: 14px; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.6; }
+
+  @media (max-width: 640px) {
+    body { padding: 12px 8px 32px; }
+    .cal { padding: 14px 6px; }
+    .cal-head .word, .cal-head .year { font-size: 20px; }
+    .cal-head .month { font-size: 18px; }
+    .cell { min-height: 92px; padding: 3px; }
+    .moon { max-width: 36px; }
+    .mm { font-size: 9px; }
+    .ev { font-size: 8px; }
+    .dow { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="controls">
+    <div class="group" id="presets"></div>
+    <div class="group">
+      <label>Lit <input type="color" id="litColor"></label>
+      <label>Dark <input type="color" id="shadowColor"></label>
+      <label>Background <input type="color" id="bgColor"></label>
+    </div>
+    <div class="group">
+      <label><input type="checkbox" id="showMm" checked> Myanmar calendar</label>
+      <label><input type="checkbox" id="south"> Southern hemisphere</label>
+      <select id="lang">
+        <option value="en">English</option>
+        <option value="my">မြန်မာ</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="cal" id="cal">
+    <div class="cal-head">
+      <span class="word" id="tWord">MOON</span>
+      <span class="month" id="tMonth"></span>
+      <span class="year" id="tYear"></span>
+    </div>
+    <div class="mm-banner" id="mmBanner"></div>
+    <div class="nav">
+      <button class="btn" id="prev">&larr;</button>
+      <button class="btn" id="today"></button>
+      <button class="btn" id="next">&rarr;</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="phases" id="phases"></div>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<script src="moon-core.js"></script>
+<script>
+
+// ---------- Text ----------
+const T = {
+  en: {
+    word: 'MOON', today: 'Today', prev: 'Previous', next: 'Next',
+    dow: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+    dowS: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+    month: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+    q: ['New Moon','First Quarter','Full Moon','Third Quarter'],
+    waxing: 'Waxing', waning: 'Waning', full: 'Full moon', new: 'New moon', late: 'Late ', era: 'ME',
+    mm: { tagu:'Tagu', kason:'Kason', nayon:'Nayon', waso1:'First Waso', waso:'Waso', wagaung:'Wagaung', tawthalin:'Tawthalin',
+          thadingyut:'Thadingyut', tazaungmon:'Tazaungmon', nadaw:'Nadaw', pyatho:'Pyatho', tabodwe:'Tabodwe', tabaung:'Tabaung' },
+    foot: 'Phase times are shown in your local time zone ({tz}). The Myanmar calendar follows the traditional (Irwin) rules, so its full/new moon day can differ by a day from the astronomical phase.',
+  },
+  my: {
+    word: 'လ', today: 'ယနေ့', prev: 'ယခင်', next: 'နောက်',
+    dow: ['တနင်္ဂနွေ','တနင်္လာ','အင်္ဂါ','ဗုဒ္ဓဟူး','ကြာသပတေး','သောကြာ','စနေ'],
+    dowS: ['တနင်္ဂနွေ','တနင်္လာ','အင်္ဂါ','ဗုဒ္ဓဟူး','ကြာသပတေး','သောကြာ','စနေ'],
+    month: GREG_MONTHS_MY,
+    q: ['လကွယ်','လဆန်း တစ်ဝက်','လပြည့်','လဆုတ် တစ်ဝက်'],
+    waxing: 'လဆန်း', waning: 'လဆုတ်', full: 'လပြည့်', new: 'လကွယ်', late: 'နှောင်း', era: 'မြန်မာ့ခုနှစ်',
+    mm: MM_NAMES,
+    foot: 'အချိန်များကို သင့်ဒေသစံတော်ချိန် ({tz}) ဖြင့် ပြထားသည်။',
+  },
+};
+
+// ---------- State ----------
+const PRESETS = [
+  { name: 'Classic',  lit: '#ecebe6', shadow: '#1d1d22', bg: '#09090b' },
+  { name: 'Golden',   lit: '#ffd54a', shadow: '#231c07', bg: '#0b0b0e' },
+  { name: 'Ocean',    lit: '#9ad0ff', shadow: '#0f2442', bg: '#07101f' },
+  { name: 'Rose',     lit: '#ff9bb5', shadow: '#3a1424', bg: '#12080d' },
+  { name: 'Jade',     lit: '#8ff0c0', shadow: '#0d3326', bg: '#06130e' },
+  { name: 'Blood',    lit: '#ff6a4d', shadow: '#3a100a', bg: '#120706' },
+];
+const DEFAULTS = { ...PRESETS[1], showMm: true, south: false, lang: 'en' };
+let st = { ...DEFAULTS };
+try { Object.assign(st, JSON.parse(localStorage.getItem('moon-cal') || '{}')); } catch (e) {}
+const now = new Date();
+let view = { y: now.getFullYear(), m: now.getMonth() };
+
+const $ = id => document.getElementById(id);
+const save = () => { try { localStorage.setItem('moon-cal', JSON.stringify(st)); } catch (e) {} };
+const num = n => st.lang === 'my' ? numMy(n) : String(n);
+
+// ---------- Moon drawing ----------
+function moonSVG(D) {
+  const r = 50, c = 50;
+  const waxing = Math.sin(D * RAD) > 0;
+  const cosD = Math.cos(D * RAD);
+  const rx = Math.abs(cosD) * r;
+  const lit = waxing !== st.south;     // which side is lit on screen: true = right
+  const sweep = cosD > 0 ? 0 : 1;
+  const illum = (1 - cosD) / 2;
+  let path = '';
+  if (illum > 0.995) path = `<circle cx="${c}" cy="${c}" r="${r}" fill="var(--lit)"/>`;
+  else if (illum > 0.004) {
+    path = `<path transform="${lit ? '' : 'translate(100,0) scale(-1,1)'}" fill="var(--lit)"
+      d="M${c} ${c - r} A${r} ${r} 0 0 1 ${c} ${c + r} A${rx.toFixed(2)} ${r} 0 0 ${sweep} ${c} ${c - r}Z"/>`;
+  }
+  return `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="${c}" cy="${c}" r="${r - 0.5}" fill="var(--shadow)" stroke="var(--lit)" stroke-opacity=".28" stroke-width="1"/>${path}</svg>`;
+}
+
+// ---------- Rendering ----------
+const jdLocalNoon = (y, m, d) => new Date(y, m, d, 12).getTime() / 864e5 + 2440587.5;
+const jdToDate = jd => new Date((jd - 2440587.5) * 864e5);
+const fmtTime = jd => jdToDate(jd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+const fmtDay = jd => { const d = jdToDate(jd); return `${T[st.lang].month[d.getMonth()].slice(0, 3)} ${num(d.getDate())}, ${fmtTime(jd)}`; };
+
+// Myanmar calendar text is always in Myanmar script, whatever the UI language
+function mmLabel(m) {
+  return (m.late ? T.my.late : '') + T.my.mm[m.k];
+}
+function mmDayText(m) {
+  const t = T.my;
+  if (m.phase === 'full') return t.full;
+  if (m.phase === 'new') return t.new;
+  return `${m.phase === 'waxing' ? t.waxing : t.waning} ${numMy(m.pday)}`;
+}
+
+function render() {
+  const t = T[st.lang];
+  const { y, m } = view;
+  const root = document.documentElement.style;
+  root.setProperty('--lit', st.lit); root.setProperty('--shadow', st.shadow); root.setProperty('--bg', st.bg);
+  $('cal').classList.toggle('hide-mm', !st.showMm);
+  document.documentElement.lang = st.lang === 'my' ? 'my' : 'en';
+
+  $('tWord').textContent = t.word;
+  $('tMonth').textContent = t.month[m];
+  $('tYear').textContent = num(y);
+  $('today').textContent = t.today;
+  $('foot').textContent = t.foot.replace('{tz}', Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+  // principal phases (look a day either side so edges are not missed)
+  const first = new Date(y, m, 1), days = new Date(y, m + 1, 0).getDate();
+  const jdStart = jdLocalNoon(y, m, 1) - 0.5, jdEnd = jdLocalNoon(y, m, days) + 0.5;
+  const phases = findPhases(jdStart, jdEnd);
+  const byDay = {};
+  phases.forEach(p => { byDay[jdToDate(p.jd).getDate()] = p; });
+
+  // grid
+  let html = t.dowS.map(d => `<div class="dow">${d}</div>`).join('');
+  for (let i = 0; i < first.getDay(); i++) html += '<div class="cell empty"></div>';
+  const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  const mmFirst = jdnToMyanmar(gregToJdn(y, m, 1)), mmLast = jdnToMyanmar(gregToJdn(y, m, days));
+  for (let d = 1; d <= days; d++) {
+    const D = elongation(jdLocalNoon(y, m, d));
+    const mmd = jdnToMyanmar(gregToJdn(y, m, d));
+    const p = byDay[d];
+    const isToday = todayKey === `${y}-${m}-${d}`;
+    // show exact phase on its day: draw the principal phase icon
+    const drawD = p ? p.q * 90 : D;
+    const mmLine = (mmd.md === 1 || d === 1 ? `<b>${mmLabel(mmd)}</b><br>` : '') + mmDayText(mmd);
+    html += `<div class="cell${isToday ? ' today' : ''}${p ? ' principal' : ''}">
+      <span class="d">${num(d)}</span>
+      <div class="moon">${moonSVG(drawD)}</div>
+      <div class="mm">${mmLine}</div>
+      ${p ? `<div class="ev">${t.q[p.q]}<small>${fmtTime(p.jd)}</small></div>` : ''}
+    </div>`;
+  }
+  $('grid').innerHTML = html;
+
+  // Myanmar banner
+  const sameMonth = mmFirst.k === mmLast.k && mmFirst.my === mmLast.my;
+  const span = sameMonth ? mmLabel(mmFirst) : `${mmLabel(mmFirst)} – ${mmLabel(mmLast)}`;
+  $('mmBanner').textContent = st.showMm ? `${span} · ${T.my.era} ${numMy(mmLast.my)}` : '';
+
+  // principal phase cards
+  $('phases').innerHTML = phases.map(p => `<div class="phase-card">
+    <div class="moon">${moonSVG(p.q * 90)}</div>
+    <div><div class="n">${t.q[p.q]}</div><div class="t">${fmtDay(p.jd)}</div></div></div>`).join('');
+}
+
+// ---------- Controls ----------
+function buildControls() {
+  $('presets').innerHTML = PRESETS.map((p, i) =>
+    `<button class="swatch" title="${p.name}" data-i="${i}" style="background:linear-gradient(135deg, ${p.lit} 50%, ${p.shadow} 50%)"></button>`).join('');
+  $('presets').addEventListener('click', e => {
+    const b = e.target.closest('.swatch'); if (!b) return;
+    const p = PRESETS[+b.dataset.i];
+    st.lit = p.lit; st.shadow = p.shadow; st.bg = p.bg;
+    sync(); save(); render();
+  });
+  [['litColor','lit'], ['shadowColor','shadow'], ['bgColor','bg']].forEach(([id, key]) =>
+    $(id).addEventListener('input', e => { st[key] = e.target.value; sync(false); save(); render(); }));
+  $('showMm').addEventListener('change', e => { st.showMm = e.target.checked; save(); render(); });
+  $('south').addEventListener('change', e => { st.south = e.target.checked; save(); render(); });
+  $('lang').addEventListener('change', e => { st.lang = e.target.value; save(); render(); });
+  $('prev').addEventListener('click', () => { view.m--; if (view.m < 0) { view.m = 11; view.y--; } render(); });
+  $('next').addEventListener('click', () => { view.m++; if (view.m > 11) { view.m = 0; view.y++; } render(); });
+  $('today').addEventListener('click', () => { view = { y: now.getFullYear(), m: now.getMonth() }; render(); });
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === 'ArrowLeft') $('prev').click();
+    if (e.key === 'ArrowRight') $('next').click();
+  });
+}
+function sync(all = true) {
+  $('litColor').value = st.lit; $('shadowColor').value = st.shadow; $('bgColor').value = st.bg;
+  if (all) { $('showMm').checked = st.showMm; $('south').checked = st.south; $('lang').value = st.lang; }
+  document.querySelectorAll('.swatch').forEach(b => {
+    const p = PRESETS[+b.dataset.i];
+    b.classList.toggle('active', p.lit === st.lit && p.shadow === st.shadow && p.bg === st.bg);
+  });
+}
+
+if (typeof document !== 'undefined' && document.getElementById('grid')) {
+  buildControls(); sync(); render();
+}
+</script>
+</body>
+</html>
