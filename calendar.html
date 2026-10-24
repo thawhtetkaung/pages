@@ -70,6 +70,15 @@
   .mm b { color: var(--accent); font-weight: 600; }
   .ev { font-size: 10px; text-align: center; color: var(--ink); line-height: 1.3; margin-top: 2px; }
   .ev small { color: var(--muted); display: block; }
+  .hol { font-size: 10px; line-height: 1.25; text-align: center; margin-top: 2px; }
+  .hol.jp { color: #ff8a80; }
+  .hol.mm { color: #82d9ff; }
+  .cell.is-hol .d { font-weight: 600; }
+  .cell.is-hol-jp .d { color: #ff8a80; }
+  .cell.is-hol-mm .d { color: #82d9ff; }
+  .hol-list { margin-top: 16px; display: grid; gap: 4px; font-size: 13px; }
+  .hol-list .row { display: flex; gap: 10px; }
+  .hol-list .when { color: var(--muted); min-width: 64px; }
   .cell.principal .moon { filter: drop-shadow(0 0 10px var(--lit)); }
   .hide-mm .mm { display: none; }
   .hide-mm .cell { min-height: 100px; }
@@ -90,6 +99,7 @@
     .moon { max-width: 36px; }
     .mm { font-size: 9px; }
     .ev { font-size: 8px; }
+    .hol { font-size: 8px; }
     .dow { font-size: 10px; }
   }
 </style>
@@ -106,6 +116,8 @@
     </div>
     <div class="group">
       <label><input type="checkbox" id="showMm" checked> Myanmar calendar</label>
+      <label><input type="checkbox" id="jpHol"> Japan holidays</label>
+      <label><input type="checkbox" id="mmHol"> Myanmar holidays</label>
       <label><input type="checkbox" id="south"> Southern hemisphere</label>
       <select id="lang">
         <option value="en">English</option>
@@ -128,11 +140,13 @@
     </div>
     <div class="grid" id="grid"></div>
     <div class="phases" id="phases"></div>
+    <div class="hol-list" id="holList"></div>
   </div>
   <div class="foot" id="foot"></div>
 </div>
 
 <script src="moon-core.js"></script>
+<script src="holidays.js"></script>
 <script>
 
 // ---------- Text ----------
@@ -146,7 +160,8 @@ const T = {
     waxing: 'Waxing', waning: 'Waning', full: 'Full moon', new: 'New moon', late: 'Late ', era: 'ME',
     mm: { tagu:'Tagu', kason:'Kason', nayon:'Nayon', waso1:'First Waso', waso:'Waso', wagaung:'Wagaung', tawthalin:'Tawthalin',
           thadingyut:'Thadingyut', tazaungmon:'Tazaungmon', nadaw:'Nadaw', pyatho:'Pyatho', tabodwe:'Tabodwe', tabaung:'Tabaung' },
-    foot: 'Phase times are shown in your local time zone ({tz}). The Myanmar calendar follows the traditional (Irwin) rules, so its full/new moon day can differ by a day from the astronomical phase.',
+    hol: 'Holidays',
+    foot: 'Holidays are calculated by rule and may be wrong or miss recent changes, so check official sources before relying on them. Phase times are shown in your local time zone ({tz}). The Myanmar calendar follows the traditional (Irwin) rules, so its full/new moon day can differ by a day from the astronomical phase.',
   },
   my: {
     word: 'လ', today: 'ယနေ့', prev: 'ယခင်', next: 'နောက်',
@@ -156,7 +171,8 @@ const T = {
     q: ['လကွယ်','လဆန်း တစ်ဝက်','လပြည့်','လဆုတ် တစ်ဝက်'],
     waxing: 'လဆန်း', waning: 'လဆုတ်', full: 'လပြည့်', new: 'လကွယ်', late: 'နှောင်း', era: 'မြန်မာ့ခုနှစ်',
     mm: MM_NAMES,
-    foot: 'အချိန်များကို သင့်ဒေသစံတော်ချိန် ({tz}) ဖြင့် ပြထားသည်။',
+    hol: 'အားလပ်ရက်များ',
+    foot: 'အားလပ်ရက်များကို စည်းမျဉ်းအလိုက် တွက်ချက်ထားခြင်းဖြစ်ပြီး မှားယွင်းနိုင်သည်၊ တရားဝင်ကြေညာချက်ကို စစ်ဆေးပါ။ အချိန်များကို သင့်ဒေသစံတော်ချိန် ({tz}) ဖြင့် ပြထားသည်။',
   },
 };
 
@@ -169,7 +185,7 @@ const PRESETS = [
   { name: 'Jade',     lit: '#8ff0c0', shadow: '#0d3326', bg: '#06130e' },
   { name: 'Blood',    lit: '#ff6a4d', shadow: '#3a100a', bg: '#120706' },
 ];
-const DEFAULTS = { ...PRESETS[1], showMm: true, south: false, lang: 'en' };
+const DEFAULTS = { ...PRESETS[1], showMm: true, jpHol: true, mmHol: false, south: false, lang: 'en' };
 let st = { ...DEFAULTS };
 try { Object.assign(st, JSON.parse(localStorage.getItem('moon-cal') || '{}')); } catch (e) {}
 const now = new Date();
@@ -240,6 +256,8 @@ function render() {
   let html = t.dowS.map(d => `<div class="dow">${d}</div>`).join('');
   for (let i = 0; i < first.getDay(); i++) html += '<div class="cell empty"></div>';
   const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  const hols = holidaysFor(y, { japan: st.jpHol, myanmar: st.mmHol });
+  const holName = h => (st.lang === 'my' ? h.loc : h.en);
   const mmFirst = jdnToMyanmar(gregToJdn(y, m, 1)), mmLast = jdnToMyanmar(gregToJdn(y, m, days));
   for (let d = 1; d <= days; d++) {
     const D = elongation(jdLocalNoon(y, m, d));
@@ -249,11 +267,14 @@ function render() {
     // show exact phase on its day: draw the principal phase icon
     const drawD = p ? p.q * 90 : D;
     const mmLine = (mmd.md === 1 || d === 1 ? `<b>${mmLabel(mmd)}</b><br>` : '') + mmDayText(mmd);
-    html += `<div class="cell${isToday ? ' today' : ''}${p ? ' principal' : ''}">
+    const hs = hols[`${m}-${d}`] || [];
+    const holCls = hs.length ? ` is-hol is-hol-${hs[0].c}` : '';
+    html += `<div class="cell${isToday ? ' today' : ''}${p ? ' principal' : ''}${holCls}">
       <span class="d">${num(d)}</span>
       <div class="moon">${moonSVG(drawD)}</div>
       <div class="mm">${mmLine}</div>
-      ${p ? `<div class="ev">${t.q[p.q]}<small>${fmtTime(p.jd)}</small></div>` : ''}
+      ${hs.map(h => `<div class="hol ${h.c}">${holName(h)}</div>`).join('')}
+      ${p ? `<div class="ev">${t.q[p.q]}</div>` : ''}
     </div>`;
   }
   $('grid').innerHTML = html;
@@ -262,6 +283,14 @@ function render() {
   const sameMonth = mmFirst.k === mmLast.k && mmFirst.my === mmLast.my;
   const span = sameMonth ? mmLabel(mmFirst) : `${mmLabel(mmFirst)} – ${mmLabel(mmLast)}`;
   $('mmBanner').textContent = st.showMm ? `${span} · ${T.my.era} ${numMy(mmLast.my)}` : '';
+
+  // holiday list for the month
+  const monthHols = Object.entries(hols).filter(([k]) => +k.split('-')[0] === m)
+    .flatMap(([k, arr]) => arr.map(h => ({ d: +k.split('-')[1], h }))).sort((a, b) => a.d - b.d);
+  $('holList').innerHTML = monthHols.length
+    ? `<div class="t" style="color:var(--muted)">${t.hol}</div>` + monthHols.map(({ d, h }) =>
+      `<div class="row"><span class="when">${t.month[m].slice(0, 3)} ${num(d)}</span><span class="hol ${h.c}" style="text-align:left;font-size:13px;margin:0">${holName(h)}${st.lang === 'en' && h.c === 'jp' ? ` · ${h.loc}` : ''}</span></div>`).join('')
+    : '';
 
   // principal phase cards
   $('phases').innerHTML = phases.map(p => `<div class="phase-card">
@@ -282,6 +311,8 @@ function buildControls() {
   [['litColor','lit'], ['shadowColor','shadow'], ['bgColor','bg']].forEach(([id, key]) =>
     $(id).addEventListener('input', e => { st[key] = e.target.value; sync(false); save(); render(); }));
   $('showMm').addEventListener('change', e => { st.showMm = e.target.checked; save(); render(); });
+  $('jpHol').addEventListener('change', e => { st.jpHol = e.target.checked; save(); render(); });
+  $('mmHol').addEventListener('change', e => { st.mmHol = e.target.checked; save(); render(); });
   $('south').addEventListener('change', e => { st.south = e.target.checked; save(); render(); });
   $('lang').addEventListener('change', e => { st.lang = e.target.value; save(); render(); });
   $('prev').addEventListener('click', () => { view.m--; if (view.m < 0) { view.m = 11; view.y--; } render(); });
@@ -295,7 +326,7 @@ function buildControls() {
 }
 function sync(all = true) {
   $('litColor').value = st.lit; $('shadowColor').value = st.shadow; $('bgColor').value = st.bg;
-  if (all) { $('showMm').checked = st.showMm; $('south').checked = st.south; $('lang').value = st.lang; }
+  if (all) { $('showMm').checked = st.showMm; $('jpHol').checked = st.jpHol; $('mmHol').checked = st.mmHol; $('south').checked = st.south; $('lang').value = st.lang; }
   document.querySelectorAll('.swatch').forEach(b => {
     const p = PRESETS[+b.dataset.i];
     b.classList.toggle('active', p.lit === st.lit && p.shadow === st.shadow && p.bg === st.bg);

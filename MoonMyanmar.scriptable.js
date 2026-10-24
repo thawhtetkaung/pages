@@ -150,7 +150,6 @@ function lockRectangular() {
   col.layoutVertically();
   addText(col, monthName(my), 15, WHITE, 'bold');
   addText(col, dayText(my), 14, WHITE);
-  addText(col, `${illumPct}%`, 11, SOFT);
   return w;
 }
 
